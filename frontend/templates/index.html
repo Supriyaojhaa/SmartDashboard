@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Data Processing & Validation System</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="form-page-wrapper">
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+
+  <header class="hero-header">
+    <div class="brand-badge">
+      <span class="pulse-dot"></span>
+      <span>Enterprise Analytics Engine</span>
+    </div>
+    <h1 class="main-title">Smart Data Processing System</h1>
+    <p class="main-subtitle">Automated validation, multithreaded processing, and dynamic visual analytics</p>
+  </header>
+
+  <div class="form-container-card">
+    
+    <!-- Quick Demo Shortcut -->
+    <div class="demo-banner">
+      <div class="demo-banner-text">
+        <span>⚡</span> Want a quick test? Load sample data in 1 click:
+      </div>
+      <button type="button" class="btn-demo" onclick="loadDemoData()">
+        Try Demo Dataset
+      </button>
+    </div>
+
+    <form id="upload-form" action="/submit" method="POST" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
+
+      <!-- Full Name -->
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="name">
+            <span>👤</span> Full Name
+          </label>
+        </div>
+        <div class="input-wrapper">
+          <span class="input-icon">✎</span>
+          <input type="text" id="name" name="name" class="field-input" placeholder="e.g. John Doe" required oninput="validateName(this)">
+        </div>
+        <div id="name-hint" class="field-hint">Letters and spaces only</div>
+      </div>
+
+      <!-- Email -->
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="email">
+            <span>✉️</span> Business Email
+          </label>
+        </div>
+        <div class="input-wrapper">
+          <span class="input-icon">@</span>
+          <input type="email" id="email" name="email" class="field-input" placeholder="e.g. john@example.com" required oninput="validateEmail(this)">
+        </div>
+        <div id="email-hint" class="field-hint">Valid email format required</div>
+      </div>
+
+      <!-- Phone Number -->
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="phone">
+            <span>📞</span> Phone Number
+          </label>
+          <span id="phone-counter" class="field-counter">0/10 digits</span>
+        </div>
+        <div class="input-wrapper">
+          <span class="input-icon">#</span>
+          <input type="tel" id="phone" name="phone" class="field-input" placeholder="e.g. 9876543210" maxlength="10" required oninput="validatePhone(this)">
+        </div>
+        <div id="phone-hint" class="field-hint">Must be exactly 10 digits</div>
+      </div>
+
+      <!-- Password -->
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="password">
+            <span>🔒</span> Password
+          </label>
+        </div>
+        <div class="input-wrapper">
+          <span class="input-icon">🔑</span>
+          <input type="password" id="password" name="password" class="field-input" placeholder="Enter secure password" required oninput="validatePassword(this)">
+          <button type="button" class="input-action-btn" onclick="togglePasswordVisibility()" title="Toggle password visibility">
+            <span id="eye-icon">👁️</span>
+          </button>
+        </div>
+        <div class="password-criteria">
+          <span id="crit-len" class="criteria-pill">6+ chars</span>
+          <span id="crit-letter" class="criteria-pill">Contains letters</span>
+          <span id="crit-digit" class="criteria-pill">Contains numbers</span>
+        </div>
+      </div>
+
+      <!-- Drag & Drop Dataset Upload -->
+      <div class="dropzone-container">
+        <div class="field-header">
+          <label class="field-label">
+            <span>📁</span> Dataset File
+          </label>
+        </div>
+
+        <div id="dropzone" class="dropzone" onclick="document.getElementById('dataset').click()">
+          <input type="file" id="dataset" name="dataset" class="dropzone-input" accept=".csv, .json" required onchange="handleFileSelected(this)">
+          
+          <div class="dropzone-content" id="dropzone-content">
+            <div class="upload-icon-wrapper">
+              <span>☁️</span>
+            </div>
+            <div class="dropzone-prompt">
+              Drag & drop dataset here, or <span>Browse</span>
+            </div>
+            <div class="dropzone-sub">Upload CSV or JSON tabular datasets</div>
+            <div class="format-tags">
+              <span class="format-tag">.CSV</span>
+              <span class="format-tag">.JSON</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected File Preview Card -->
+        <div id="selected-file-card" class="selected-file-card">
+          <div class="selected-file-info">
+            <div id="file-type-icon" class="file-type-icon">📊</div>
+            <div class="file-details">
+              <div id="file-name" class="file-name">filename.csv</div>
+              <div id="file-meta" class="file-meta">0 KB</div>
+            </div>
+          </div>
+          <button type="button" class="btn-remove-file" onclick="clearSelectedFile(event)" title="Remove file">
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" id="submit-btn" class="btn-submit">
+        <span>🚀</span>
+        <span>Analyze Dataset</span>
+      </button>
+
+    </form>
+  </div>
+</div>
+
+<!-- Fullscreen Processing Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="loading-card">
+    <div class="spinner-ring"></div>
+    <h3 class="loading-title">Analyzing Dataset</h3>
+    <p class="loading-desc">Executing high-performance concurrent processing pipeline</p>
+
+    <div class="pipeline-steps">
+      <div id="step-1" class="pipeline-step active">
+        <div class="step-indicator">1</div>
+        <span>Validating credentials & dataset format</span>
+      </div>
+      <div id="step-2" class="pipeline-step">
+        <div class="step-indicator">2</div>
+        <span>Running multithreaded processing worker</span>
+      </div>
+      <div id="step-3" class="pipeline-step">
+        <div class="step-indicator">3</div>
+        <span>Executing multiprocessing chunk task</span>
+      </div>
+      <div id="step-4" class="pipeline-step">
+        <div class="step-indicator">4</div>
+        <span>Computing column metrics & generating charts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Validation regex patterns
+  const namePattern = /^[A-Za-z ]+$/;
+  const emailPattern = /^[\w\.-]+@[\w\.-]+\.\w+$/;
+  const phonePattern = /^[0-9]{10}$/;
+  const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
+
+  function validateName(el) {
+    const hint = document.getElementById('name-hint');
+    const val = el.value.trim();
+    if (val.length === 0) {
+      el.classList.remove('is-valid', 'is-invalid');
+      hint.className = 'field-hint';
+      hint.textContent = 'Letters and spaces only';
+      return false;
+    }
+    if (namePattern.test(val)) {
+      el.classList.add('is-valid');
+      el.classList.remove('is-invalid');
+      hint.className = 'field-hint success';
+      hint.textContent = '✓ Name looks good';
+      return true;
+    } else {
+      el.classList.add('is-invalid');
+      el.classList.remove('is-valid');
+      hint.className = 'field-hint error';
+      hint.textContent = '✕ Name can only contain letters and spaces';
+      return false;
+    }
+  }
+
+  function validateEmail(el) {
+    const hint = document.getElementById('email-hint');
+    const val = el.value.trim();
+    if (val.length === 0) {
+      el.classList.remove('is-valid', 'is-invalid');
+      hint.className = 'field-hint';
+      hint.textContent = 'Valid email format required';
+      return false;
+    }
+    if (emailPattern.test(val)) {
+      el.classList.add('is-valid');
+      el.classList.remove('is-invalid');
+      hint.className = 'field-hint success';
+      hint.textContent = '✓ Valid business email';
+      return true;
+    } else {
+      el.classList.add('is-invalid');
+      el.classList.remove('is-valid');
+      hint.className = 'field-hint error';
+      hint.textContent = '✕ Please enter a valid email (e.g. name@domain.com)';
+      return false;
+    }
+  }
+
+  function validatePhone(el) {
+    const hint = document.getElementById('phone-hint');
+    const counter = document.getElementById('phone-counter');
+    // Allow only numbers
+    el.value = el.value.replace(/\D/g, '');
+    const val = el.value;
+    counter.textContent = `${val.length}/10 digits`;
+
+    if (val.length === 0) {
+      el.classList.remove('is-valid', 'is-invalid');
+      hint.className = 'field-hint';
+      hint.textContent = 'Must be exactly 10 digits';
+      return false;
+    }
+    if (phonePattern.test(val)) {
+      el.classList.add('is-valid');
+      el.classList.remove('is-invalid');
+      hint.className = 'field-hint success';
+      hint.textContent = '✓ 10-digit number complete';
+      return true;
+    } else {
+      el.classList.add('is-invalid');
+      el.classList.remove('is-valid');
+      hint.className = 'field-hint error';
+      hint.textContent = `✕ Exactly 10 digits required (${10 - val.length} remaining)`;
+      return false;
+    }
+  }
+
+  function validatePassword(el) {
+    const val = el.value;
+    const critLen = document.getElementById('crit-len');
+    const critLetter = document.getElementById('crit-letter');
+    const critDigit = document.getElementById('crit-digit');
+
+    const hasLen = val.length >= 6;
+    const hasLetter = /[A-Za-z]/.test(val);
+    const hasDigit = /\d/.test(val);
+
+    critLen.className = hasLen ? 'criteria-pill met' : 'criteria-pill';
+    critLetter.className = hasLetter ? 'criteria-pill met' : 'criteria-pill';
+    critDigit.className = hasDigit ? 'criteria-pill met' : 'criteria-pill';
+
+    if (val.length === 0) {
+      el.classList.remove('is-valid', 'is-invalid');
+      return false;
+    }
+
+    if (hasLen && hasLetter && hasDigit) {
+      el.classList.add('is-valid');
+      el.classList.remove('is-invalid');
+      return true;
+    } else {
+      el.classList.add('is-invalid');
+      el.classList.remove('is-valid');
+      return false;
+    }
+  }
+
+  function togglePasswordVisibility() {
+    const input = document.getElementById('password');
+    const icon = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      icon.textContent = '👁️';
+    }
+  }
+
+  // Drag and drop handlers
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('dataset');
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('dragover');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    }, false);
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+      fileInput.files = files;
+      handleFileSelected(fileInput);
+    }
+  });
+
+  function handleFileSelected(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const card = document.getElementById('selected-file-card');
+      const dropContent = document.getElementById('dropzone-content');
+      const nameEl = document.getElementById('file-name');
+      const metaEl = document.getElementById('file-meta');
+      const iconEl = document.getElementById('file-type-icon');
+
+      nameEl.textContent = file.name;
+      const sizeKB = (file.size / 1024).toFixed(1);
+      const isJson = file.name.toLowerCase().endsWith('.json');
+      metaEl.textContent = `${sizeKB} KB • ${isJson ? 'JSON' : 'CSV'} Dataset`;
+      iconEl.textContent = isJson ? '📋' : '📊';
+
+      card.style.display = 'flex';
+      dropContent.style.opacity = '0.4';
+    }
+  }
+
+  function clearSelectedFile(e) {
+    if (e) e.stopPropagation();
+    fileInput.value = '';
+    document.getElementById('selected-file-card').style.display = 'none';
+    document.getElementById('dropzone-content').style.opacity = '1';
+  }
+
+  // Quick Demo Dataset Loader
+  async function loadDemoData() {
+    document.getElementById('name').value = 'John Doe';
+    validateName(document.getElementById('name'));
+
+    document.getElementById('email').value = 'john.doe@example.com';
+    validateEmail(document.getElementById('email'));
+
+    document.getElementById('phone').value = '9876543210';
+    validatePhone(document.getElementById('phone'));
+
+    document.getElementById('password').value = 'Secured123';
+    validatePassword(document.getElementById('password'));
+
+    try {
+      const res = await fetch('/sample-dataset');
+      const blob = await res.blob();
+      const file = new File([blob], 'sample_dataset.csv', { type: 'text/csv' });
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      fileInput.files = dataTransfer.files;
+      handleFileSelected(fileInput);
+    } catch (err) {
+      console.warn('Could not fetch sample file:', err);
+    }
+  }
+
+  // Form submission & animated pipeline simulation
+  function handleFormSubmit(e) {
+    const isNameOk = validateName(document.getElementById('name'));
+    const isEmailOk = validateEmail(document.getElementById('email'));
+    const isPhoneOk = validatePhone(document.getElementById('phone'));
+    const isPassOk = validatePassword(document.getElementById('password'));
+
+    if (!isNameOk || !isEmailOk || !isPhoneOk || !isPassOk) {
+      alert('Please correct the highlighted fields before submitting.');
+      e.preventDefault();
+      return false;
+    }
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert('Please select or drag a CSV/JSON dataset file.');
+      e.preventDefault();
+      return false;
+    }
+
+    // Show interactive loading overlay
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.display = 'flex';
+
+    // Simulate multi-stage visual pipeline while server processes
+    setTimeout(() => {
+      document.getElementById('step-1').className = 'pipeline-step done';
+      document.getElementById('step-2').className = 'pipeline-step active';
+    }, 500);
+
+    setTimeout(() => {
+      document.getElementById('step-2').className = 'pipeline-step done';
+      document.getElementById('step-3').className = 'pipeline-step active';
+    }, 1100);
+
+    setTimeout(() => {
+      document.getElementById('step-3').className = 'pipeline-step done';
+      document.getElementById('step-4').className = 'pipeline-step active';
+    }, 1800);
+
+    return true;
+  }
+</script>
+
+</body>
+</html>

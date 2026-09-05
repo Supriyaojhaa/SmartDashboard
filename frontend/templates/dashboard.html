@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Analytics Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-dashboard">
+
+  <!-- Top Navigation Bar -->
+  <header class="dashboard-navbar">
+    <div class="nav-brand-group">
+      <div class="nav-brand-title">Smart Data Analytics</div>
+      <div class="dataset-pill">
+        <span>📊</span>
+        <span>{{ filename }}</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <a href="/download-results" class="btn-nav" title="Download analyzed statistics as JSON">
+        <span>📥</span>
+        <span>Export JSON</span>
+      </a>
+      <a href="/" class="btn-nav primary">
+        <span>+</span>
+        <span>New Upload</span>
+      </a>
+    </div>
+  </header>
+
+  {% if stats %}
+
+  <div class="dashboard-content-layout">
+
+    <!-- Left Sticky Sidebar -->
+    <aside class="dashboard-sidebar">
+      <div class="sidebar-section-title">
+        <span>Attributes Filter</span>
+        <span id="active-count-badge" class="filter-badge">{{ stats|length }} / {{ stats|length }} Active</span>
+      </div>
+
+      <div class="sidebar-actions">
+        <button type="button" class="btn-pill" onclick="selectAllColumns(true)">Select All</button>
+        <button type="button" class="btn-pill" onclick="selectAllColumns(false)">Clear All</button>
+      </div>
+
+      <input type="text" class="col-search-box" placeholder="Search columns..." oninput="filterSidebarColumns(this.value)">
+
+      <div class="filter-items-list" id="filter-items-list">
+        {% for column in stats.keys() %}
+        <label class="filter-item-label" data-colname="{{ column }}">
+          <div class="filter-item-left">
+            <input type="checkbox" class="col-checkbox" value="{{ column }}" checked onchange="handleColumnToggle()">
+            <span>{{ column|capitalize }}</span>
+          </div>
+          <span class="filter-badge">Num</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+        <div style="font-size: 11px; color: var(--text-subtle); margin-bottom: 8px;">PARALLEL WORKERS</div>
+        <div style="display: flex; gap: 6px; flex-direction: column;">
+          <div style="font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+            <span>●</span> Threading Worker: Active
+          </div>
+          <div style="font-size: 12px; color: #818cf8; display: flex; align-items: center; gap: 6px;">
+            <span>●</span> Multiprocessing Worker: Active
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Dashboard Content -->
+    <main class="dashboard-body">
+
+      <!-- KPI Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon-box kpi-icon-1">📋</div>
+          <div>
+            <div class="kpi-value">{{ row_count }}</div>
+            <div class="kpi-label">Dataset Records (Rows)</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-box kpi-icon-2">📑</div>
+          <div>
+            <div class="kpi-value">{{ col_count }}</div>
+            <div class="kpi-label">Total Attributes</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-box kpi-icon-3">📈</div>
+          <div>
+            <div class="kpi-value">{{ numeric_count }}</div>
+            <div class="kpi-label">Numeric Columns Analyzed</div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-icon-box kpi-icon-4">⚡</div>
+          <div>
+            <div class="kpi-value">2 Engines</div>
+            <div class="kpi-label">Threading & Multiprocessing</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Column Statistics Section -->
+      <div class="section-header">
+        <div>
+          <h2 class="section-heading">
+            <span>📐</span>
+            <span>Statistical Summary</span>
+          </h2>
+          <p class="section-desc">Computed mathematical parameters: Mean, Median, and Standard Deviation</p>
+        </div>
+      </div>
+
+      <div class="stats-cards-grid" id="stats-grid">
+        {% for column, values in stats.items() %}
+        <div class="stat-item-card" data-column="{{ column }}">
+          <div class="stat-header">
+            <span class="stat-col-name">{{ column|capitalize }}</span>
+            <span class="filter-badge">Numeric</span>
+          </div>
+
+          <div class="stat-rows">
+            <div class="stat-metric-row">
+              <span class="stat-metric-label">Mean</span>
+              <span class="stat-metric-val">{{ "%.2f"|format(values.mean) }}</span>
+            </div>
+            <div class="stat-metric-row">
+              <span class="stat-metric-label">Median</span>
+              <span class="stat-metric-val">{{ "%.2f"|format(values.median) }}</span>
+            </div>
+            <div class="stat-metric-row">
+              <span class="stat-metric-label">Std Deviation</span>
+              <span class="stat-metric-val">{{ "%.2f"|format(values.std) }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Dataset Preview Table Section -->
+      <div class="section-header">
+        <div>
+          <h2 class="section-heading">
+            <span>🔍</span>
+            <span>Dataset Preview</span>
+          </h2>
+          <p class="section-desc">Tabular raw data preview with live instant search</p>
+        </div>
+      </div>
+
+      <div class="table-card-wrapper">
+        <div class="table-toolbar">
+          <input type="text" id="table-search" class="table-search-input" placeholder="Search records in table..." oninput="filterTableRows(this.value)">
+          <div id="table-row-count" style="font-size: 13px; color: var(--text-muted);">
+            Showing all rows
+          </div>
+        </div>
+
+        <div class="table-scroll-container">
+          {{ preview | safe }}
+        </div>
+      </div>
+
+      <!-- Data Visualizations Section -->
+      <div class="section-header">
+        <div>
+          <h2 class="section-heading">
+            <span>📊</span>
+            <span>Data Visualizations</span>
+          </h2>
+          <p class="section-desc">Visual distributions and multi-axis correlation charts</p>
+        </div>
+
+        <!-- Chart Type Filter Tabs -->
+        <div class="chart-filter-tabs">
+          <button type="button" class="tab-btn active" onclick="filterChartType('all', this)">All Visuals</button>
+          <button type="button" class="tab-btn" onclick="filterChartType('line', this)">Line Graphs</button>
+          <button type="button" class="tab-btn" onclick="filterChartType('bar', this)">Bar Charts</button>
+          <button type="button" class="tab-btn" onclick="filterChartType('hist', this)">Distributions</button>
+        </div>
+      </div>
+
+      <div class="charts-display-grid" id="charts-grid">
+        {% for column, values in stats.items() %}
+        <div class="chart-box-card" data-column="{{ column }}">
+          
+          <!-- Card Top Bar -->
+          <div class="chart-card-top">
+            <h3 class="chart-card-title">{{ column|capitalize }}</h3>
+            
+            <div class="axis-selector-bar">
+              <label>X Axis:</label>
+              <select class="axis-dropdown" data-ycol="{{ column }}" onchange="updateChart(this)">
+                {% for col in all_columns %}
+                <option value="{{ col }}">{{ col|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="chart-images-container">
+            <!-- Loading overlay when updating axis -->
+            <div id="loader-{{ column }}" class="chart-overlay-loader">
+              <div class="spinner-ring" style="width: 36px; height: 36px; border-width: 3px; margin: 0;"></div>
+              <span style="font-size: 12px; color: #c7d2fe;">Updating axes...</span>
+            </div>
+
+            <!-- Line Graph -->
+            <div class="chart-figure chart-fig-line">
+              <span class="chart-tag">📈 Line Graph</span>
+              <img id="line-{{ column }}" src="/static/charts/{{ column }}_line.png" alt="{{ column }} Line Graph" onclick="openLightbox(this.src, '{{ column|capitalize }} - Line Graph')">
+            </div>
+
+            <!-- Bar Graph -->
+            <div class="chart-figure chart-fig-bar">
+              <span class="chart-tag">📊 Bar Graph</span>
+              <img id="bar-{{ column }}" src="/static/charts/{{ column }}_bar.png" alt="{{ column }} Bar Graph" onclick="openLightbox(this.src, '{{ column|capitalize }} - Bar Graph')">
+            </div>
+
+            <!-- Histogram -->
+            <div class="chart-figure chart-fig-hist">
+              <span class="chart-tag">📉 Distribution</span>
+              <img id="hist-{{ column }}" src="/static/charts/{{ column }}_hist.png" alt="{{ column }} Distribution" onclick="openLightbox(this.src, '{{ column|capitalize }} - Distribution Histogram')">
+            </div>
+          </div>
+
+        </div>
+        {% endfor %}
+      </div>
+
+    </main>
+  </div>
+
+  {% else %}
+
+  <!-- Empty State Fallback -->
+  <div class="empty-notice-card">
+    <div class="empty-notice-icon">📂</div>
+    <h2 style="font-size: 22px; margin-bottom: 10px; color: white;">No Numeric Columns Found</h2>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">
+      The uploaded dataset contains no numeric attributes or could not be parsed into continuous metrics.
+    </p>
+    <a href="/" class="btn-nav primary" style="display: inline-flex;">
+      <span>←</span>
+      <span>Upload Another Dataset</span>
+    </a>
+  </div>
+
+  {% endif %}
+
+</div>
+
+<!-- Lightbox Modal for Chart Zoom -->
+<div id="lightbox-modal" class="lightbox-modal" onclick="closeLightbox(event)">
+  <div class="lightbox-content" onclick="event.stopPropagation()">
+    <button type="button" class="btn-close-lightbox" onclick="closeLightbox()" title="Close (Esc)">✕</button>
+    <h3 id="lightbox-title" style="margin-bottom: 14px; font-size: 16px; color: #c7d2fe;">Chart Zoom</h3>
+    <img id="lightbox-img" class="lightbox-img" src="" alt="Enlarged Chart">
+    
+    <div class="lightbox-toolbar">
+      <span style="font-size: 12px; color: var(--text-subtle);">Click outside or press Esc to exit</span>
+      <a id="lightbox-dl-btn" href="#" download="chart.png" class="btn-nav primary" style="font-size: 12px; padding: 6px 12px;">
+        <span>📥</span>
+        <span>Download PNG</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const filepath = "{{ filepath }}";
+
+  // Real-time live column toggle
+  function handleColumnToggle() {
+    const checkboxes = Array.from(document.querySelectorAll('.col-checkbox'));
+    const checked = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+
+    // Update active badge
+    const badge = document.getElementById('active-count-badge');
+    if (badge) {
+      badge.textContent = `${checked.length} / ${checkboxes.length} Active`;
+    }
+
+    // Toggle Stat Cards
+    document.querySelectorAll('.stat-item-card').forEach(card => {
+      const col = card.getAttribute('data-column');
+      card.style.display = checked.includes(col) ? 'block' : 'none';
+    });
+
+    // Toggle Chart Cards
+    document.querySelectorAll('.chart-box-card').forEach(card => {
+      const col = card.getAttribute('data-column');
+      card.style.display = checked.includes(col) ? 'block' : 'none';
+    });
+  }
+
+  // Select all or clear all columns
+  function selectAllColumns(selectAll) {
+    document.querySelectorAll('.col-checkbox').forEach(cb => {
+      cb.checked = selectAll;
+    });
+    handleColumnToggle();
+  }
+
+  // Filter sidebar columns by search keyword
+  function filterSidebarColumns(query) {
+    const q = query.toLowerCase().trim();
+    document.querySelectorAll('.filter-item-label').forEach(label => {
+      const col = label.getAttribute('data-colname').toLowerCase();
+      label.style.display = col.includes(q) ? 'flex' : 'none';
+    });
+  }
+
+  // Filter dataset preview table rows
+  function filterTableRows(query) {
+    const q = query.toLowerCase().trim();
+    const table = document.querySelector('.preview-table');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      if (text.includes(q)) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    const countEl = document.getElementById('table-row-count');
+    if (countEl) {
+      countEl.textContent = q ? `Found ${visibleCount} matching rows` : `Showing all rows`;
+    }
+  }
+
+  // Filter chart types (All, Line, Bar, Hist)
+  function filterChartType(type, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    const lines = document.querySelectorAll('.chart-fig-line');
+    const bars = document.querySelectorAll('.chart-fig-bar');
+    const hists = document.querySelectorAll('.chart-fig-hist');
+
+    if (type === 'all') {
+      lines.forEach(el => el.style.display = 'flex');
+      bars.forEach(el => el.style.display = 'flex');
+      hists.forEach(el => el.style.display = 'flex');
+    } else if (type === 'line') {
+      lines.forEach(el => el.style.display = 'flex');
+      bars.forEach(el => el.style.display = 'none');
+      hists.forEach(el => el.style.display = 'none');
+    } else if (type === 'bar') {
+      lines.forEach(el => el.style.display = 'none');
+      bars.forEach(el => el.style.display = 'flex');
+      hists.forEach(el => el.style.display = 'none');
+    } else if (type === 'hist') {
+      lines.forEach(el => el.style.display = 'none');
+      bars.forEach(el => el.style.display = 'none');
+      hists.forEach(el => el.style.display = 'flex');
+    }
+  }
+
+  // Update chart via AJAX with animated loading overlay
+  function updateChart(selectEl) {
+    const x_col = selectEl.value;
+    const y_col = selectEl.getAttribute('data-ycol');
+    const loader = document.getElementById('loader-' + y_col);
+
+    if (loader) loader.style.display = 'flex';
+
+    fetch('/update_column_chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ x_col, y_col, filepath })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (loader) loader.style.display = 'none';
+      if (data.error) {
+        console.error('Error updating chart:', data.error);
+        return;
+      }
+      const ts = new Date().getTime();
+      const lineImg = document.getElementById('line-' + y_col);
+      const barImg = document.getElementById('bar-' + y_col);
+      if (lineImg) lineImg.src = data.line + '?t=' + ts;
+      if (barImg) barImg.src = data.bar + '?t=' + ts;
+    })
+    .catch(err => {
+      if (loader) loader.style.display = 'none';
+      console.error('Fetch error:', err);
+    });
+  }
+
+  // Lightbox Zoom Modal
+  function openLightbox(imgSrc, title) {
+    const modal = document.getElementById('lightbox-modal');
+    const modalImg = document.getElementById('lightbox-img');
+    const modalTitle = document.getElementById('lightbox-title');
+    const dlBtn = document.getElementById('lightbox-dl-btn');
+
+    modalImg.src = imgSrc;
+    modalTitle.textContent = title;
+    dlBtn.href = imgSrc;
+    dlBtn.download = title.replace(/[^a-zA-Z0-9_-]/g, '_') + '.png';
+
+    modal.style.display = 'flex';
+  }
+
+  function closeLightbox(e) {
+    const modal = document.getElementById('lightbox-modal');
+    modal.style.display = 'none';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+
+</body>
+</html>
