@@ -1,21 +1,47 @@
-from flask import Flask, render_template, request, jsonify, send_file
+import sys
 import os
+import tempfile
 import pandas as pd
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+
+# Ensure backend directory is in sys.path for Vercel and module imports
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 from modules.validation import validate_user
 from modules.processing import process_dataset, generate_column_chart 
 from modules.threading_tasks import run_threading
 from modules.multiprocessing_tasks import run_process, sample_task
 
-app = Flask(__name__,
-            template_folder="../frontend/templates",
-            static_folder="../frontend/static")
+PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
+TEMPLATE_DIR = os.path.join(PROJECT_ROOT, "frontend", "templates")
+STATIC_DIR = os.path.join(PROJECT_ROOT, "frontend", "static")
 
-UPLOAD_FOLDER = "data"
+app = Flask(__name__,
+            template_folder=TEMPLATE_DIR,
+            static_folder=STATIC_DIR)
+
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+
+if IS_VERCEL:
+    UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), "data")
+    CHARTS_FOLDER = os.path.join(tempfile.gettempdir(), "charts")
+else:
+    UPLOAD_FOLDER = os.path.join(BACKEND_DIR, "data")
+    CHARTS_FOLDER = os.path.join(STATIC_DIR, "charts")
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# ensure folder exists
+# Ensure folders exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(CHARTS_FOLDER, exist_ok=True)
+
+
+@app.route("/static/charts/<path:filename>")
+def serve_chart(filename):
+    """Serves charts from either local static folder or Vercel tempdir."""
+    return send_from_directory(CHARTS_FOLDER, filename)
 
 
 @app.route("/")

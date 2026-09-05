@@ -19,6 +19,19 @@ from modules.base_processor import BaseProcessor
 from utils.mixins import LoggingMixin, ExportMixin
 
 
+import tempfile
+
+def get_charts_folder():
+    """Returns the writable charts directory (supports Vercel serverless /tmp)."""
+    if os.environ.get("VERCEL") == "1":
+        folder = os.path.join(tempfile.gettempdir(), "charts")
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        folder = os.path.join(base_dir, "../../frontend/static/charts")
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
 def apply_theme(fig, ax, title, xlabel, ylabel):
     """Applies modern dark-glassmorphism theme matching the dashboard UI."""
     fig.patch.set_facecolor("#0b0f19")
@@ -101,13 +114,13 @@ def process_dataset(filepath):
     print("Python Version:", sys.version)
     print("Square root demo:", math.sqrt(16))
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    charts_folder = os.path.join(BASE_DIR, "../../frontend/static/charts")
-
-    os.makedirs(charts_folder, exist_ok=True)
+    charts_folder = get_charts_folder()
 
     for file in os.listdir(charts_folder):
-        os.remove(os.path.join(charts_folder, file))
+        try:
+            os.remove(os.path.join(charts_folder, file))
+        except Exception:
+            pass
 
     for column in numeric_columns:
 
@@ -220,9 +233,7 @@ def generate_column_chart(filepath, x_col, y_col):
     except Exception:
         return None
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    charts_folder = os.path.join(BASE_DIR, "../../frontend/static/charts")
-    os.makedirs(charts_folder, exist_ok=True)
+    charts_folder = get_charts_folder()
 
     x_labels = df[x_col].astype(str).tolist()
     y_vals = pd.to_numeric(df[y_col], errors="coerce").fillna(0).values
